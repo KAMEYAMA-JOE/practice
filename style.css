@@ -251,13 +251,13 @@ header p {
 }
 
 .player-cell-name {
-    flex: 1 1 180px;
-    min-width: 0;
+    flex: 1 1 220px;
+    min-width: 160px;
 }
 
 .player-cell-score {
-    flex: 0 1 110px;
-    min-width: 90px;
+    flex: 0 0 140px;
+    min-width: 110px;
 }
 
 .player-cell-name input,
@@ -269,41 +269,25 @@ header p {
     font-size: 1rem;
 }
 
+.player-row {
+    align-items: center;
+}
+
+.player-cell-name,
+.player-cell-score {
+    min-width: 0;
+}
+
 .player-cell-yakitori {
+    display: flex;
+    justify-content: flex-start;
     flex: 0 0 auto;
 }
 
-.player-cell-yakitori.yakitori-hidden {
-    display: none;
-}
-
-@media (max-width: 680px) {
-    .player-row {
-        align-items: stretch;
-    }
-
-    .player-cell-name,
-    .player-cell-score,
-    .player-cell-yakitori {
-        width: 100%;
-        flex: 1 1 100%;
-    }
-
-    .player-cell-name,
-    .player-cell-score {
-        min-width: 0;
-    }
-
-    .player-cell-yakitori {
-        display: flex;
-        justify-content: flex-start;
-    }
-
-    .yakitori-toggle {
-        width: 100%;
-        justify-content: flex-start;
-        white-space: nowrap;
-    }
+.yakitori-toggle {
+    width: 100%;
+    justify-content: flex-start;
+    white-space: nowrap;
 }
 
 .yakitori-toggle {
@@ -319,9 +303,6 @@ header p {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 110px;
-    white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .yakitori-toggle:hover {
@@ -657,7 +638,9 @@ header p {
     }
 
     .player-row {
-        grid-template-columns: 50px 1fr 1fr;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
         gap: 0.75rem;
         padding: 0.75rem;
     }
@@ -712,8 +695,16 @@ header p {
     }
 
     .player-row {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .player-cell-name,
+    .player-cell-score,
+    .player-cell-yakitori {
+        width: 100%;
+        flex: 1 1 100%;
     }
 
     .player-cell-wind {

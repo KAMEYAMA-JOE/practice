@@ -219,22 +219,15 @@ function updateYakitoriCheckboxes() {
     const count = parseInt(currentRules.players, 10);
     for (let i = 0; i < count; i++) {
         const scoreEl = document.getElementById(`p-score-${i}`);
-        const yakitoriCell = document.querySelector(`#p-yakitori-${i}`)?.closest('.player-cell-yakitori');
-        if (!scoreEl || !yakitoriCell) continue;
+        const checkbox = document.getElementById(`p-yakitori-${i}`);
+        if (!scoreEl || !checkbox) continue;
 
         const score = parseFormattedNumber(scoreEl.value);
-        const checkbox = document.getElementById(`p-yakitori-${i}`);
         if (Number.isFinite(score) && score >= currentRules.genten) {
-            yakitoriCell.classList.add('yakitori-hidden');
-            if (checkbox) {
-                checkbox.checked = false;
-                checkbox.disabled = true;
-            }
+            checkbox.checked = false;
+            checkbox.disabled = true;
         } else {
-            yakitoriCell.classList.remove('yakitori-hidden');
-            if (checkbox) {
-                checkbox.disabled = false;
-            }
+            checkbox.disabled = false;
         }
     }
 }
@@ -341,14 +334,14 @@ function saveRules(event) {
     if (event) event.preventDefault();
     
     try {
-        currentRules.players = parseInt(document.getElementById('rule-players')?.value || 4);
+        currentRules.players = parseInt(document.getElementById('rule-players')?.value || 4, 10);
         currentRules.genten = 25000;
-        currentRules.kaeshi = parseInt(document.getElementById('rule-kaeshi')?.value || 30000);
+        currentRules.kaeshi = parseInt(document.getElementById('rule-kaeshi')?.value || 30000, 10);
         currentRules.uma = document.getElementById('rule-uma')?.value || "10-30";
         currentRules.rounding = document.getElementById('rule-rounding')?.value || "5sha6nyu";
         currentRules.sameScore = document.getElementById('rule-same-score')?.value || "wind";
         currentRules.yakitoriEnabled = document.getElementById('rule-yakitori-enabled')?.checked || false;
-        currentRules.yakitori = parseInt(document.getElementById('rule-yakitori')?.value || 0);
+        currentRules.yakitori = parseFormattedNumber(document.getElementById('rule-yakitori')?.value || 0);
 
         localStorage.setItem(STORAGE_RULES_KEY, JSON.stringify(currentRules));
         updateRuleDescription();
@@ -472,12 +465,13 @@ function calculateScoresHandler(event) {
                 continue;
             }
 
-            if (!/^-?\d+$/.test(rawValue)) {
+            const scoreValue = parseFormattedNumber(rawValue);
+            if (!Number.isFinite(scoreValue)) {
                 invalidIndices.push(i);
                 continue;
             }
 
-            currentTotal += Number(rawValue);
+            currentTotal += scoreValue;
         }
 
         if (invalidIndices.length > 0) {
