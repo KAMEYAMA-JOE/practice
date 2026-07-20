@@ -35,7 +35,7 @@
         </nav>
 
         <section id="rule-tab" class="content-section" role="tabpanel" aria-labelledby="tab-rule">
-            <h2>対局ルール・オプション設定</h2>
+            <h2>対局ルール設定</h2>
             
             <form id="rule-form" onsubmit="saveRules(event)">
                 <div class="form-group">
@@ -58,7 +58,7 @@
                         </div>
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="rule-kaeshi">返し点 (基準点)</label>
+                                <label for="rule-kaeshi">返し点</label>
                                 <input type="number" id="rule-kaeshi" value="30000" step="1000" required>
                             </div>
                         </div>
@@ -69,7 +69,7 @@
                     <legend style="font-weight: 600; margin-bottom: 1rem; color: var(--primary);">精算ルール</legend>
 
                     <div class="form-group">
-                        <label for="rule-uma">順位ウマ</label>
+                        <label for="rule-uma">ウマ</label>
                         <select id="rule-uma">
                             <option value="0-0">ウマなし </option>
                             <option value="5-10">5-10 </option>
@@ -100,20 +100,24 @@
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
-                                <label for="rule-tobi">トビ賞ポイント</label>
-                                <input type="number" id="rule-tobi" value="0" step="5">
-                            </div>
-                        </div>
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="rule-yakitori">焼き鳥ペナルティ</label>
-                                <input type="number" id="rule-yakitori" value="0" step="5">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="rule-yakitori-enabled" onchange="toggleYakitoriOption()">
+                                    焼き鳥オプション
+                                </label>
+                                <div class="yakitori-input-group">
+                                    <label for="rule-yakitori">焼き鳥ペナルティ（点数）</label>
+                                    <div class="yakitori-field-wrap">
+                                        <input type="number" id="rule-yakitori" value="0" step="5" placeholder="例: 9000" disabled>
+                                        <span class="input-unit">点</span>
+                                    </div>
+                                </div>
+                                <p class="helper-text">入力された点数は計算時に /100 で pt に換算されます。</p>
                             </div>
                         </div>
                     </div>
                 </fieldset>
 
-                <button type="submit" class="btn">設定を保存（プリセット登録）</button>
+                <button type="submit" class="btn">設定を保存</button>
             </form>
         </section>
 

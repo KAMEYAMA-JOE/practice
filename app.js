@@ -10,12 +10,11 @@ let currentRules = {
     uma: "10-30",
     rounding: "5sha6nyu",
     sameScore: "wind",
-    tobi: 0,
-    yakitori: 0
+    yakitori: 0,
+    yakitoriEnabled: false
 };
 
 let calculatedResults = null;
-let autoFillApplied = false;
 
 // ストレージキー定数
 const STORAGE_RULES_KEY = 'mj_calc_rules';
@@ -68,7 +67,6 @@ function initPlayerInputs() {
     if (!container) return;
     
     container.innerHTML = '';
-    autoFillApplied = false;
     const count = parseInt(currentRules.players);
     const winds = ['東', '南', '西', '北'];
 
@@ -81,6 +79,15 @@ function initPlayerInputs() {
         const wind = winds[i];
         const defaultName = `プレイヤー${wind}`;
         const playerName = savedNames[i] || defaultName;
+        const yakitoriCell = currentRules.yakitoriEnabled ? `
+            <div class="player-cell-yakitori">
+                <label class="yakitori-toggle" for="p-yakitori-${i}">
+                    <input type="checkbox" id="p-yakitori-${i}" class="p-yakitori-input" aria-label="プレイヤー${wind}の焼き鳥" />
+                    <span class="yakitori-icon" aria-hidden="true">🐔</span>
+                    <span class="yakitori-text">焼き鳥</span>
+                </label>
+            </div>
+        ` : '';
         row.innerHTML = `
             <div class="player-cell-wind" aria-label="座">${wind}</div>
             <div class="player-cell-name">
@@ -104,6 +111,7 @@ function initPlayerInputs() {
                     aria-label="プレイヤー${wind}の最終持ち点"
                 >
             </div>
+            ${yakitoriCell}
         `;
         container.appendChild(row);
     }
@@ -167,61 +175,77 @@ function setupRealtimeValidation() {
     const inputs = document.querySelectorAll('.p-score-input');
     
     inputs.forEach(input => {
-        input.removeEventListener('input', validateScores);
-        input.addEventListener('input', validateScores);
+        input.removeEventListener('input', handleScoreInput);
+        input.addEventListener('input', handleScoreInput);
     });
     
     validateScores();
 }
 
+function handleScoreInput() {
+    validateScores();
+}
+
 function validateScores() {
     const count = parseInt(currentRules.players);
-    const targetTotal = parseInt(currentRules.genten) * count;
+    const targetTotal = currentRules.genten * count;
     
     let filledCount = 0;
     let currentTotal = 0;
-    let missingIndex = -1;
-    let missingCount = 0;
+    const missingIndices = [];
+    const invalidIndices = [];
+
+    document.querySelectorAll('.p-score-input').forEach(input => {
+        input.placeholder = '持点(100点単位)';
+    });
 
     for (let i = 0; i < count; i++) {
         const input = document.getElementById(`p-score-${i}`);
         if (!input) continue;
-        
-        const val = input.value.trim();
-        if (val !== "") {
-            const numVal = parseInt(val);
-            if (!isNaN(numVal)) {
-                filledCount++;
-                currentTotal += numVal;
-            } else {
-                missingIndex = i;
-                missingCount++;
-            }
-        } else {
-            missingIndex = i;
-            missingCount++;
+
+        const rawValue = input.value.trim();
+        if (rawValue === '') {
+            missingIndices.push(i);
+            continue;
         }
+
+        const isValidNumber = /^-?\d+$/.test(rawValue);
+        if (!isValidNumber) {
+            invalidIndices.push(i);
+            continue;
+        }
+
+        const scoreValue = Number(rawValue);
+        filledCount++;
+        currentTotal += scoreValue;
     }
 
     const indicator = document.getElementById('validation-indicator');
     const calcBtn = document.getElementById('calc-btn');
-    
     if (!indicator || !calcBtn) return;
 
-    // 自動補完（残り1名のみ未入力または無効入力のとき、一度だけ実行）
-    if (!autoFillApplied && missingCount === 1 && filledCount === count - 1 && missingIndex !== -1) {
-        const autoScore = targetTotal - currentTotal;
+    if (missingIndices.length === 1 && invalidIndices.length === 0) {
+        const missingIndex = missingIndices[0];
+        const remaining = targetTotal - currentTotal;
         const input = document.getElementById(`p-score-${missingIndex}`);
-        if (input && input.value.trim() === '') {
-            input.value = autoScore;
-            input.dataset.autoFilled = 'true';
-            autoFillApplied = true;
-            filledCount++;
-            currentTotal += autoScore;
+        if (input) {
+            input.placeholder = `残り補完値: ${remaining.toLocaleString()}点`;
         }
+        indicator.className = "indicator success";
+        indicator.textContent = `最後の1枠に残り点数を入力してください。補完値: ${remaining.toLocaleString()}点`;
+        calcBtn.disabled = false;
+        calcBtn.style.opacity = "1";
+        return;
     }
 
-    // 合計整合性チェック
+    if (invalidIndices.length > 0) {
+        indicator.className = "indicator error";
+        indicator.textContent = `無効な入力があります。数字のみ入力してください。`;
+        calcBtn.disabled = true;
+        calcBtn.style.opacity = "0.6";
+        return;
+    }
+
     if (filledCount === count) {
         if (currentTotal === targetTotal) {
             indicator.className = "indicator success";
@@ -254,7 +278,7 @@ function saveRules(event) {
         currentRules.uma = document.getElementById('rule-uma')?.value || "10-30";
         currentRules.rounding = document.getElementById('rule-rounding')?.value || "5sha6nyu";
         currentRules.sameScore = document.getElementById('rule-same-score')?.value || "wind";
-        currentRules.tobi = parseInt(document.getElementById('rule-tobi')?.value || 0);
+        currentRules.yakitoriEnabled = document.getElementById('rule-yakitori-enabled')?.checked || false;
         currentRules.yakitori = parseInt(document.getElementById('rule-yakitori')?.value || 0);
 
         localStorage.setItem(STORAGE_RULES_KEY, JSON.stringify(currentRules));
@@ -285,7 +309,6 @@ function loadRulesFromStorage() {
                 'rule-uma': currentRules.uma,
                 'rule-rounding': currentRules.rounding,
                 'rule-same-score': currentRules.sameScore,
-                'rule-tobi': currentRules.tobi,
                 'rule-yakitori': currentRules.yakitori
             };
             
@@ -293,18 +316,45 @@ function loadRulesFromStorage() {
                 const el = document.getElementById(id);
                 if (el) el.value = value;
             });
+            const yakitoriEnabledInput = document.getElementById('rule-yakitori-enabled');
+            if (yakitoriEnabledInput) yakitoriEnabledInput.checked = currentRules.yakitoriEnabled;
+            updateYakitoriInputState();
         }
     } catch (error) {
         console.error('ルール読み込みエラー:', error);
     }
 }
 
+function normalizeYakitoriValue(value) {
+    const num = Number(value);
+    if (Number.isNaN(num) || num === 0) return 0;
+    return num / 100;
+}
+
 function updateRuleDescription() {
     const desc = document.getElementById('current-rule-desc');
     if (desc) {
-        desc.textContent = 
-            `${currentRules.players}人打ち / ${currentRules.genten.toLocaleString()}点持 ${currentRules.kaeshi.toLocaleString()}点返 / ウマ(${currentRules.uma})`;
+        let description = `${currentRules.players}人打ち / ${currentRules.genten.toLocaleString()}点持 ${currentRules.kaeshi.toLocaleString()}点返 / ウマ(${currentRules.uma})`;
+        if (currentRules.yakitoriEnabled) {
+            const yakitoriPt = normalizeYakitoriValue(currentRules.yakitori);
+            description += ` / 焼き鳥 ${yakitoriPt}pt`;
+        }
+        desc.textContent = description;
     }
+}
+
+function toggleYakitoriOption() {
+    const enabledInput = document.getElementById('rule-yakitori-enabled');
+    const yakitoriInput = document.getElementById('rule-yakitori');
+    if (!enabledInput || !yakitoriInput) return;
+    yakitoriInput.disabled = !enabledInput.checked;
+}
+
+function updateYakitoriInputState() {
+    const enabledInput = document.getElementById('rule-yakitori-enabled');
+    const yakitoriInput = document.getElementById('rule-yakitori');
+    if (!enabledInput || !yakitoriInput) return;
+    yakitoriInput.disabled = !enabledInput.checked;
 }
 
 // ========== 端数処理ロジック ==========
@@ -338,28 +388,67 @@ function calculateScoresHandler(event) {
     
     try {
         const count = currentRules.players;
+        const targetTotal = currentRules.genten * count;
+        const missingIndices = [];
+        const invalidIndices = [];
+        let currentTotal = 0;
+
+        for (let i = 0; i < count; i++) {
+            const scoreEl = document.getElementById(`p-score-${i}`);
+            if (!scoreEl) continue;
+
+            const rawValue = scoreEl.value.trim();
+            if (rawValue === '') {
+                missingIndices.push(i);
+                continue;
+            }
+
+            if (!/^-?\d+$/.test(rawValue)) {
+                invalidIndices.push(i);
+                continue;
+            }
+
+            currentTotal += Number(rawValue);
+        }
+
+        if (invalidIndices.length > 0) {
+            alert('無効な点数が入力されています。数字のみを入力してください。');
+            return;
+        }
+
+        if (missingIndices.length > 1) {
+            alert('点数が未入力のプレイヤーが複数あります。全員の点数を入力してください。');
+            return;
+        }
+
+        if (missingIndices.length === 1) {
+            const missingIndex = missingIndices[0];
+            const remaining = targetTotal - currentTotal;
+            const missingEl = document.getElementById(`p-score-${missingIndex}`);
+            if (missingEl) {
+                missingEl.value = remaining;
+            }
+        }
+
         let playersData = [];
 
-        // プレイヤーデータの収集
         for (let i = 0; i < count; i++) {
             const nameEl = document.getElementById(`p-name-${i}`);
             const scoreEl = document.getElementById(`p-score-${i}`);
-            
-            if (!scoreEl || scoreEl.value.trim() === '') {
-                alert(`プレイヤー${i + 1}の点数を入力してください。`);
-                return;
-            }
+            if (!scoreEl) continue;
 
-            const score = parseInt(scoreEl.value);
+            const score = parseInt(scoreEl.value, 10);
             if (isNaN(score)) {
                 alert(`プレイヤー${i + 1}の点数が無効です。`);
                 return;
             }
 
+            const yakitoriEl = document.getElementById(`p-yakitori-${i}`);
             playersData.push({
                 id: i,
                 name: nameEl?.value || `プレイヤー${i + 1}`,
                 score: score,
+                isYakitori: yakitoriEl?.checked || false,
                 initialIndex: i
             });
         }
@@ -369,7 +458,9 @@ function calculateScoresHandler(event) {
             kaeshi: currentRules.kaeshi,
             umaKey: currentRules.uma,
             rounding: currentRules.rounding,
-            sameScore: currentRules.sameScore
+            sameScore: currentRules.sameScore,
+            yakitoriEnabled: currentRules.yakitoriEnabled,
+            yakitori: currentRules.yakitori
         });
 
         // 結果表示
@@ -418,7 +509,7 @@ function assignUmaSplit(playersData, umaArray) {
     });
 }
 
-function calculateScores(players, { genten = 25000, kaeshi = 30000, umaKey = '5-10', rounding = '5sha6nyu', sameScore = 'wind' } = {}) {
+function calculateScores(players, { genten = 25000, kaeshi = 30000, umaKey = '5-10', rounding = '5sha6nyu', sameScore = 'wind', yakitoriEnabled = false, yakitori = 0 } = {}) {
     const count = players.length;
     const umaArray = getUmaArray(count, umaKey);
     const okaPoints = ((kaeshi - genten) * count) / 1000;
@@ -430,13 +521,19 @@ function calculateScores(players, { genten = 25000, kaeshi = 30000, umaKey = '5-
             return a.initialIndex - b.initialIndex;
         });
 
-    let currentRank = 1;
-    sortedPlayers.forEach((player, index) => {
-        if (index > 0 && player.score < sortedPlayers[index - 1].score) {
-            currentRank = index + 1;
-        }
-        player.rank = currentRank;
-    });
+    if (sameScore === 'wind') {
+        sortedPlayers.forEach((player, index) => {
+            player.rank = index + 1;
+        });
+    } else {
+        let currentRank = 1;
+        sortedPlayers.forEach((player, index) => {
+            if (index > 0 && player.score < sortedPlayers[index - 1].score) {
+                currentRank = index + 1;
+            }
+            player.rank = currentRank;
+        });
+    }
 
     if (sameScore === 'split') {
         assignUmaSplit(sortedPlayers, umaArray);
@@ -446,9 +543,33 @@ function calculateScores(players, { genten = 25000, kaeshi = 30000, umaKey = '5-
         });
     }
 
+    if (yakitoriEnabled && yakitori && yakitori !== 0) {
+        const penaltyValue = normalizeYakitoriValue(yakitori);
+        const yakitoriPlayers = sortedPlayers.filter(p => p.isYakitori);
+        const nonYakitoriPlayers = sortedPlayers.filter(p => !p.isYakitori);
+        if (yakitoriPlayers.length > 0 && yakitoriPlayers.length < sortedPlayers.length) {
+            const totalPenalty = penaltyValue * yakitoriPlayers.length;
+            const payoutPerNonYakitori = totalPenalty / nonYakitoriPlayers.length;
+            yakitoriPlayers.forEach(p => {
+                p.yakitoriAdjustment = -penaltyValue;
+            });
+            nonYakitoriPlayers.forEach(p => {
+                p.yakitoriAdjustment = payoutPerNonYakitori;
+            });
+        } else {
+            sortedPlayers.forEach(p => {
+                p.yakitoriAdjustment = 0;
+            });
+        }
+    } else {
+        sortedPlayers.forEach(p => {
+            p.yakitoriAdjustment = 0;
+        });
+    }
+
     sortedPlayers.forEach((player, index) => {
         const baseValue = (player.score - kaeshi) / 1000;
-        const rawValue = baseValue + player.assignedUma + (index === 0 ? okaPoints : 0);
+        const rawValue = baseValue + player.assignedUma + (index === 0 ? okaPoints : 0) + (player.yakitoriAdjustment || 0);
         player.pt = roundPoint(rawValue, rounding);
     });
 

@@ -181,11 +181,43 @@ header p {
     background: var(--surface);
 }
 
+.helper-text {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.yakitori-input-group {
+    margin-top: 0.75rem;
+}
+
+.yakitori-field-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
+.yakitori-field-wrap input {
+    flex: 1 1 auto;
+}
+
+.input-unit {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.95rem;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
 /* ========== プレイヤー入力 ========== */
 .player-row {
-    display: grid;
-    grid-template-columns: 60px 1fr 1.5fr;
-    gap: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem;
     align-items: center;
     padding: 1rem;
     background: var(--background);
@@ -205,11 +237,27 @@ header p {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.player-cell-wind,
+.player-cell-yakitori {
+    flex: 0 0 auto;
+}
+
 .player-cell-wind {
+    width: 60px;
     font-size: 1.5rem;
     font-weight: 700;
     text-align: center;
     color: var(--primary);
+}
+
+.player-cell-name {
+    flex: 1 1 180px;
+    min-width: 0;
+}
+
+.player-cell-score {
+    flex: 0 1 110px;
+    min-width: 90px;
 }
 
 .player-cell-name input,
@@ -221,14 +269,97 @@ header p {
     font-size: 1rem;
 }
 
-.player-cell-name input {
-    background: var(--surface);
+.player-cell-yakitori {
+    flex: 0 0 auto;
 }
 
-.player-cell-score input {
-    background: var(--surface);
-    text-align: right;
+@media (max-width: 680px) {
+    .player-row {
+        align-items: stretch;
+    }
+
+    .player-cell-name,
+    .player-cell-score,
+    .player-cell-yakitori {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .player-cell-name,
+    .player-cell-score {
+        min-width: 0;
+    }
+
+    .player-cell-yakitori {
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .yakitori-toggle {
+        width: 100%;
+        justify-content: flex-start;
+        white-space: nowrap;
+    }
+}
+
+.yakitori-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: #f4f4f4;
+    color: var(--text-muted);
     font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 110px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.yakitori-toggle:hover {
+    background: #faf5ef;
+}
+
+.yakitori-toggle .p-yakitori-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    clip: rect(0,0,0,0);
+    overflow: hidden;
+}
+
+.yakitori-toggle .yakitori-icon {
+    font-size: 1.2rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.yakitori-toggle .yakitori-text {
+    font-size: 0.95rem;
+}
+
+.yakitori-toggle:has(input:checked) {
+    background: #ffedd5;
+    border-color: #fb923c;
+    color: #b45309;
+}
+
+.yakitori-toggle:has(input:checked) .yakitori-icon,
+.yakitori-toggle:has(input:checked) .yakitori-text {
+    color: #b45309;
+}
+
+.yakitori-toggle input:checked + .yakitori-icon,
+.yakitori-toggle input:checked + .yakitori-icon + .yakitori-text {
+    color: #b45309;
 }
 
 /* ========== インジケーター ========== */
