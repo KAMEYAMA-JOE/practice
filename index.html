@@ -3,154 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>麻雀精算ポイント計算アプリ</title>
-    <!-- 外部CSSファイルの読み込み -->
+    <meta name="description" content="麻雀の精算ポイント計算機。簡単にウマやオカを含めた精算ポイントを計算できます。">
+    <meta name="theme-color" content="#1a3a52">
+    <title>麻雀精算ポイント計算機</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="container">
+        <!-- ========== ヘッダー ========== -->
+        <header>
+            <h1>🀄 麻雀精算ポイント計算機</h1>
+        </header>
 
-<div class="container">
-    <header>
-        <h1>麻雀精算ポイント計算機</h1>
-    </header>
+        <!-- ========== タブナビゲーション ========== -->
+        <nav class="nav-tabs" role="tablist">
+            <button class="tab-btn active" id="tab-input" role="tab" 
+                    aria-selected="true" aria-controls="input-tab"
+                    onclick="switchTab('input-tab')">
+                点数入力
+            </button>
+            <button class="tab-btn" id="tab-rule" role="tab" 
+                    aria-selected="false" aria-controls="rule-tab"
+                    onclick="switchTab('rule-tab')">
+                ルール設定
+            </button>
+            <button class="tab-btn" id="tab-history" role="tab" 
+                    aria-selected="false" aria-controls="history-tab"
+                    onclick="switchTab('history-tab')">
+                履歴
+            </button>
+        </nav>
 
-    <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('input-tab')">点数入力</button>
-        <button class="tab-btn" onclick="switchTab('rule-tab')">ルール設定</button>
-        <button class="tab-btn" onclick="switchTab('history-tab')">履歴</button>
-    </div>
-
-    <!-- ルール設定画面 -->
-    <div id="rule-tab" class="content-section">
-        <h2>対局ルール・オプション設定</h2>
-        
-        <div class="form-group">
-            <label>プレイヤー数</label>
-            <select id="rule-players" onchange="togglePlayerCount()">
-                <option value="4">4人打ち</option>
-                <option value="3">3人打ち</option>
-            </select>
-        </div>
-
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label>原点 (配給原点)</label>
-                    <input type="number" id="rule-genten" value="25000" step="1000">
-                </div>
-            </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label>返し点 (基準点)</label>
-                    <input type="number" id="rule-kaeshi" value="30000" step="1000">
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>順位ウマ</label>
-            <select id="rule-uma">
-                <option value="0-0">ウマなし (0-0)</option>
-                <option value="5-10">5-10 (ゴッツ)</option>
-                <option value="10-20">10-20</option>
-                <option value="10-30" selected>10-30 (ワンスリー)</option>
-                <option value="20-30">20-30</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>端数処理ルール</label>
-            <select id="rule-rounding">
-                <option value="5sha6nyu" selected>五捨六入</option>
-                <option value="shishagonyu">四捨五入</option>
-                <option value="kirisute">1000点未満切り捨て</option>
-                <option value="keep">小数点維持</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>同着時の処理</label>
-            <select id="rule-same-score">
-                <option value="wind">起親に近い順(座順)</option>
-                <option value="split">ウマ・オカを折半</option>
-            </select>
-        </div>
-
-        <div class="form-row">
-            <div class="form-col">
-                <div class="form-group">
-                    <label>トビ賞ポイント</label>
-                    <input type="number" id="rule-tobi" value="0" step="5">
-                </div>
-            </div>
-            <div class="form-col">
-                <div class="form-group">
-                    <label>焼き鳥ペナルティ</label>
-                    <input type="number" id="rule-yakitori" value="0" step="5">
-                </div>
-            </div>
-        </div>
-
-        <button class="btn" onclick="saveRules()">設定を保存（プリセット登録）</button>
-    </div>
-
-    <!-- 点数入力画面 -->
-    <div id="input-tab" class="content-section active">
-        <div class="flex-space" style="margin-bottom: 15px;">
-            <h2>最終持ち点入力</h2>
-            <span id="current-rule-desc" style="font-size: 0.8rem; color: var(--text-muted);">4人打ち / 25000持 30000返</span>
-        </div>
-
-        <div id="player-inputs-container">
-            <!-- JSで動的生成 -->
-        </div>
-
-        <div id="validation-indicator" class="indicator error">
-            全員の点数を入力してください
-        </div>
-
-        <button class="btn" id="calc-btn" onclick="calculateScores()">計算して結果を表示</button>
-
-        <!-- 結果表示エリア -->
-        <div id="result-area" style="display:none; margin-top: 25px; border-top: 2px solid var(--border-color); padding-top: 20px;">
-            <h2>計算結果</h2>
-            <table class="result-table">
-                <thead>
-                    <tr>
-                        <th>着順</th>
-                        <th>プレイヤー</th>
-                        <th>持ち点</th>
-                        <th>精算P</th>
-                    </tr>
-                </thead>
-                <tbody id="result-tbody">
-                    <!-- JSで動的生成 -->
-                </tbody>
-            </table>
-
-            <div class="form-group">
-                <label>共有用テキスト</label>
-                <div class="share-box" id="share-text-box"></div>
-                <button class="btn btn-secondary" style="padding: 8px; font-size: 0.85rem; margin-top: 5px;" onclick="copyShareText()">テキストをコピー</button>
-            </div>
+        <!-- ========== ルール設定タブ ========== -->
+        <section id="rule-tab" class="content-section" role="tabpanel" aria-labelledby="tab-rule">
+            <h2>対局ルール・オプション設定</h2>
             
-            <button class="btn" style="background-color: var(--accent-color);" onclick="saveToHistory()">この対局結果を履歴に保存</button>
-        </div>
+            <form id="rule-form" onsubmit="saveRules(event)">
+                <div class="form-group">
+                    <label for="rule-players">プレイヤー数</label>
+                    <select id="rule-players" onchange="togglePlayerCount()">
+                        <option value="4">4人打ち</option>
+                        <option value="3">3人打ち</option>
+                    </select>
+                </div>
+
+                <fieldset style="border: none; padding: 0;">
+                    <legend style="font-weight: 600; margin-bottom: 1rem; color: var(--primary);">基本ルール</legend>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="rule-genten">原点 (配給原点)</label>
+                                <input type="number" id="rule-genten" value="25000" step="1000" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="rule-kaeshi">返し点 (基準点)</label>
+                                <input type="number" id="rule-kaeshi" value="30000" step="1000" required>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset style="border: none; padding: 0; margin-top: 1.5rem;">
+                    <legend style="font-weight: 600; margin-bottom: 1rem; color: var(--primary);">精算ルール</legend>
+
+                    <div class="form-group">
+                        <label for="rule-uma">順位ウマ</label>
+                        <select id="rule-uma">
+                            <option value="0-0">ウマなし (0-0)</option>
+                            <option value="5-10">5-10 (ゴッツ)</option>
+                            <option value="10-20">10-20</option>
+                            <option value="10-30" selected>10-30 (ワンスリー)</option>
+                            <option value="20-30">20-30</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rule-rounding">端数処理ルール</label>
+                        <select id="rule-rounding">
+                            <option value="5sha6nyu" selected>五捨六入</option>
+                            <option value="shishagonyu">四捨五入</option>
+                            <option value="kirisute">1000点未満切り捨て</option>
+                            <option value="keep">小数点維持</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rule-same-score">同着時の処理</label>
+                        <select id="rule-same-score">
+                            <option value="wind">起親に近い順(座順)</option>
+                            <option value="split">ウマ・オカを折半</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="rule-tobi">トビ賞ポイント</label>
+                                <input type="number" id="rule-tobi" value="0" step="5">
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="rule-yakitori">焼き鳥ペナルティ</label>
+                                <input type="number" id="rule-yakitori" value="0" step="5">
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <button type="submit" class="btn">設定を保存（プリセット登録）</button>
+            </form>
+        </section>
+
+        <!-- ========== 点数入力タブ ========== -->
+        <section id="input-tab" class="content-section active" role="tabpanel" aria-labelledby="tab-input">
+            <div class="flex-space" style="margin-bottom: 1.5rem;">
+                <h2>最終持ち点入力</h2>
+                <span id="current-rule-desc" style="font-size: 0.85rem; color: var(--text-muted); background: var(--background); padding: 0.5rem 1rem; border-radius: 6px;">
+                    4人打ち / 25000持 30000返
+                </span>
+            </div>
+
+            <form id="input-form" onsubmit="calculateScores(event)">
+                <fieldset id="player-inputs-container" style="border: none; padding: 0;">
+                    <legend style="display: none;">プレイヤーの点数入力</legend>
+                    <!-- JSで動的生成 -->
+                </fieldset>
+
+                <div id="validation-indicator" class="indicator error" role="status" aria-live="polite">
+                    全員の点数を入力してください
+                </div>
+
+                <button type="submit" class="btn" id="calc-btn" disabled>計算して結果を表示</button>
+            </form>
+
+            <!-- ========== 結果表示エリア ========== -->
+            <div id="result-area" style="display: none; margin-top: 2rem; border-top: 2px solid var(--border-color); padding-top: 2rem;">
+                <h2>計算結果</h2>
+                
+                <table class="result-table" role="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">着順</th>
+                            <th scope="col">プレイヤー</th>
+                            <th scope="col">最終持ち点</th>
+                            <th scope="col">精算ポイント</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result-tbody">
+                        <!-- JSで動的生成 -->
+                    </tbody>
+                </table>
+
+                <div class="form-group">
+                    <label for="share-text-box">共有用テキスト</label>
+                    <div class="share-box" id="share-text-box" tabindex="0" aria-label="共有用テキスト" role="textbox"></div>
+                    <button type="button" class="btn btn-secondary" onclick="copyShareText()" 
+                            style="padding: 0.75rem; font-size: 0.9rem; margin-top: 0.5rem;">
+                        📋 テキストをコピー
+                    </button>
+                </div>
+                
+                <button type="button" class="btn" style="background: linear-gradient(135deg, var(--accent-light) 0%, #e8b649 100%); color: var(--text-primary);" 
+                        onclick="saveToHistory()">
+                    💾 この対局結果を履歴に保存
+                </button>
+            </div>
+        </section>
+
+        <!-- ========== 履歴タブ ========== -->
+        <section id="history-tab" class="content-section" role="tabpanel" aria-labelledby="tab-history">
+            <div class="flex-space" style="margin-bottom: 1.5rem;">
+                <h2>対局履歴</h2>
+                <button type="button" class="btn btn-secondary" style="margin: 0; padding: 0.6rem 1rem; font-size: 0.85rem; width: auto;" 
+                        onclick="clearHistory()">
+                    🗑️ 履歴全削除
+                </button>
+            </div>
+            <div id="history-list" role="region" aria-label="対局履歴">
+                <!-- JSで動的生成 -->
+            </div>
+        </section>
     </div>
 
-    <!-- 履歴画面 -->
-    <div id="history-tab" class="content-section">
-        <div class="flex-space" style="margin-bottom: 15px;">
-            <h2>対局履歴</h2>
-            <button class="btn btn-secondary" style="margin:0; padding: 6px 12px; font-size: 0.8rem; width: auto;" onclick="clearHistory()">履歴全削除</button>
-        </div>
-        <div id="history-list">
-            <!-- JSで動的生成 -->
-        </div>
-    </div>
-</div>
-
-<!-- 外部JavaScriptファイルの読み込み -->
-<script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
