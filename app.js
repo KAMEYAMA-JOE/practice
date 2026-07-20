@@ -309,35 +309,31 @@ function updateRuleDescription() {
 
 // ========== 端数処理ロジック ==========
 function roundPoint(rawPoint, method) {
-    if (method === 'keep') {
-        return Math.round(rawPoint * 10) / 10;
+    const round1 = value => Math.round(value * 10) / 10;
+    const trunc1 = value => (value >= 0 ? Math.floor(value * 10) : Math.ceil(value * 10)) / 10;
+
+    if (method === 'keep' || method === 'shishagonyu') {
+        return round1(rawPoint);
     }
 
-    const sign = rawPoint >= 0 ? 1 : -1;
-    const absVal = Math.abs(rawPoint);
-    let rounded = Math.round(absVal);
+    if (method === 'kirisute') {
+        return trunc1(rawPoint);
+    }
 
     if (method === '5sha6nyu') {
-        // 五捨六入：小数第一位が0.5以下なら切り捨て、0.6以上なら切り上げ
-        const fraction = absVal - Math.floor(absVal);
-        if (fraction >= 0.5001) {
-            rounded = Math.ceil(absVal);
-        } else if (fraction <= 0.5) {
-            rounded = Math.floor(absVal);
+        const scaled = rawPoint * 100;
+        const secondDecimal = Math.abs(Math.trunc(scaled)) % 10;
+        if (secondDecimal >= 6) {
+            return (rawPoint >= 0 ? Math.ceil(rawPoint * 10) : Math.floor(rawPoint * 10)) / 10;
         }
-    } else if (method === 'kirisute') {
-        // 切り捨て
-        rounded = Math.floor(absVal);
-    } else if (method === 'shishagonyu') {
-        // 四捨五入
-        rounded = Math.round(absVal);
+        return (rawPoint >= 0 ? Math.floor(rawPoint * 10) : Math.ceil(rawPoint * 10)) / 10;
     }
 
-    return rounded * sign;
+    return round1(rawPoint);
 }
 
 // ========== 精算ポイント計算コア ==========
-function calculateScores(event) {
+function calculateScoresHandler(event) {
     if (event) event.preventDefault();
     
     try {
@@ -368,36 +364,13 @@ function calculateScores(event) {
             });
         }
 
-        // 着順による並び替え
-        playersData.sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            if (currentRules.sameScore === 'wind') return a.initialIndex - b.initialIndex;
-            return 0;
+        playersData = calculateScores(playersData, {
+            genten: currentRules.genten,
+            kaeshi: currentRules.kaeshi,
+            umaKey: currentRules.uma,
+            rounding: currentRules.rounding,
+            sameScore: currentRules.sameScore
         });
-
-        // ランク付け
-        let currentRank = 1;
-        for (let i = 0; i < count; i++) {
-            if (i > 0 && playersData[i].score < playersData[i - 1].score) {
-                currentRank = i + 1;
-            }
-            playersData[i].rank = currentRank;
-        }
-
-        // ウマ配列の設定
-        let umaArray = getUmaArray(count);
-
-        // 同着時の処理
-        if (currentRules.sameScore === 'split') {
-            assignUmaSplit(playersData, umaArray);
-        } else {
-            playersData.forEach((p, idx) => {
-                p.assignedUma = umaArray[idx] || 0;
-            });
-        }
-
-        // ポイント計算
-        calculatePoints(playersData);
 
         // 結果表示
         displayResults(playersData);
@@ -409,20 +382,20 @@ function calculateScores(event) {
     }
 }
 
-function getUmaArray(count) {
-    const uma = currentRules.uma;
+function getUmaArray(count, umaKey) {
+    const uma = umaKey || currentRules.uma;
     if (count === 3) {
-        if (uma === '5-10') return [15, 0, -15];
+        if (uma === '5-10') return [10, 0, -10];
         if (uma === '10-20') return [20, 0, -20];
         if (uma === '10-30') return [30, 0, -30];
         if (uma === '20-30') return [30, 0, -30];
     } else {
-        if (uma === '5-10') return [15, 5, -5, -15];
+        if (uma === '5-10') return [10, 5, -5, -10];
         if (uma === '10-20') return [20, 10, -10, -20];
         if (uma === '10-30') return [30, 10, -10, -30];
         if (uma === '20-30') return [30, 20, -20, -30];
     }
-    return [0, 0, 0, 0];
+    return Array(count).fill(0);
 }
 
 function assignUmaSplit(playersData, umaArray) {
@@ -443,6 +416,61 @@ function assignUmaSplit(playersData, umaArray) {
         group.forEach(p => { p.assignedUma = avgUma; });
         idxPointer += group.length;
     });
+}
+
+function calculateScores(players, { genten = 25000, kaeshi = 30000, umaKey = '5-10', rounding = '5sha6nyu', sameScore = 'wind' } = {}) {
+    const count = players.length;
+    const umaArray = getUmaArray(count, umaKey);
+    const okaPoints = ((kaeshi - genten) * count) / 1000;
+
+    const sortedPlayers = players
+        .map((p, index) => ({ ...p, initialIndex: index }))
+        .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.initialIndex - b.initialIndex;
+        });
+
+    let currentRank = 1;
+    sortedPlayers.forEach((player, index) => {
+        if (index > 0 && player.score < sortedPlayers[index - 1].score) {
+            currentRank = index + 1;
+        }
+        player.rank = currentRank;
+    });
+
+    if (sameScore === 'split') {
+        assignUmaSplit(sortedPlayers, umaArray);
+    } else {
+        sortedPlayers.forEach((player, index) => {
+            player.assignedUma = umaArray[index] || 0;
+        });
+    }
+
+    sortedPlayers.forEach((player, index) => {
+        const baseValue = (player.score - kaeshi) / 1000;
+        const rawValue = baseValue + player.assignedUma + (index === 0 ? okaPoints : 0);
+        player.pt = roundPoint(rawValue, rounding);
+    });
+
+    if (sortedPlayers.length > 0) {
+        const lastIndex = sortedPlayers.length - 1;
+        const totalExceptLast = sortedPlayers
+            .slice(0, lastIndex)
+            .reduce((sum, player) => sum + player.pt, 0);
+        sortedPlayers[lastIndex].pt = roundPoint(-totalExceptLast, rounding);
+    }
+
+    return sortedPlayers.map(player => ({
+        id: player.id,
+        name: player.name,
+        score: player.score,
+        rank: player.rank,
+        pt: player.pt
+    }));
+}
+
+function calculateScoresFromPlayers(players, options = {}) {
+    return calculateScores(players, options);
 }
 
 function calculatePoints(playersData) {
