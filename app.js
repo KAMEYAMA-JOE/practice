@@ -67,7 +67,11 @@ function initPlayerInputs() {
     if (!container) return;
     
     container.innerHTML = '';
-    const count = parseInt(currentRules.players);
+    let count = parseInt(currentRules.players, 10);
+    if (!Number.isInteger(count) || count < 3 || count > 4) {
+        count = 4;
+        currentRules.players = 4;
+    }
     const winds = ['東', '南', '西', '北'];
 
     const savedNames = loadPlayerNamesFromStorage(count);
@@ -102,12 +106,13 @@ function initPlayerInputs() {
             </div>
             <div class="player-cell-score">
                 <input 
-                    type="number" 
+                    type="text" 
                     id="p-score-${i}" 
-                    class="p-score-input"
+                    class="p-score-input formatted-number"
                     value="" 
                     placeholder="持点(100点単位)" 
-                    step="100"
+                    inputmode="numeric"
+                    pattern="[0-9,]*"
                     aria-label="プレイヤー${wind}の最終持ち点"
                 >
             </div>
@@ -116,7 +121,9 @@ function initPlayerInputs() {
         container.appendChild(row);
     }
     
+    setupFormattedInputs();
     setupRealtimeValidation();
+    updateYakitoriCheckboxes();
     setupPlayerNamePersistence();
 }
 
@@ -155,6 +162,42 @@ function handlePlayerNameInput() {
     savePlayerNamesToStorage(names);
 }
 
+function formatNumberWithCommas(value) {
+    const str = String(value);
+    const match = str.match(/^(-?)(\d+)$/);
+    if (!match) return str;
+    const sign = match[1];
+    const digits = match[2];
+    return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function parseFormattedNumber(value) {
+    if (value == null) return NaN;
+    const cleaned = String(value).replace(/,/g, '').trim();
+    if (cleaned === '' || cleaned === '-' || cleaned === '+') return NaN;
+    return Number(cleaned);
+}
+
+function handleFormattedNumberInput(event) {
+    const input = event.target;
+    const raw = input.value;
+    const negative = raw.startsWith('-');
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits === '') {
+        input.value = negative ? '-' : '';
+        return;
+    }
+    input.value = formatNumberWithCommas((negative ? '-' : '') + digits);
+}
+
+function setupFormattedInputs() {
+    const inputs = document.querySelectorAll('.formatted-number');
+    inputs.forEach(input => {
+        input.removeEventListener('input', handleFormattedNumberInput);
+        input.addEventListener('input', handleFormattedNumberInput);
+    });
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -168,6 +211,32 @@ function togglePlayerCount() {
     
     currentRules.players = parseInt(select.value);
     initPlayerInputs();
+}
+
+function updateYakitoriCheckboxes() {
+    if (!currentRules.yakitoriEnabled) return;
+
+    const count = parseInt(currentRules.players, 10);
+    for (let i = 0; i < count; i++) {
+        const scoreEl = document.getElementById(`p-score-${i}`);
+        const yakitoriCell = document.querySelector(`#p-yakitori-${i}`)?.closest('.player-cell-yakitori');
+        if (!scoreEl || !yakitoriCell) continue;
+
+        const score = parseFormattedNumber(scoreEl.value);
+        const checkbox = document.getElementById(`p-yakitori-${i}`);
+        if (Number.isFinite(score) && score >= currentRules.genten) {
+            yakitoriCell.classList.add('yakitori-hidden');
+            if (checkbox) {
+                checkbox.checked = false;
+                checkbox.disabled = true;
+            }
+        } else {
+            yakitoriCell.classList.remove('yakitori-hidden');
+            if (checkbox) {
+                checkbox.disabled = false;
+            }
+        }
+    }
 }
 
 // ========== リアルタイムバリデーション ==========
@@ -184,6 +253,7 @@ function setupRealtimeValidation() {
 
 function handleScoreInput() {
     validateScores();
+    updateYakitoriCheckboxes();
 }
 
 function validateScores() {
@@ -209,13 +279,12 @@ function validateScores() {
             continue;
         }
 
-        const isValidNumber = /^-?\d+$/.test(rawValue);
-        if (!isValidNumber) {
+        const scoreValue = parseFormattedNumber(rawValue);
+        if (!Number.isFinite(scoreValue)) {
             invalidIndices.push(i);
             continue;
         }
 
-        const scoreValue = Number(rawValue);
         filledCount++;
         currentTotal += scoreValue;
     }
@@ -437,8 +506,8 @@ function calculateScoresHandler(event) {
             const scoreEl = document.getElementById(`p-score-${i}`);
             if (!scoreEl) continue;
 
-            const score = parseInt(scoreEl.value, 10);
-            if (isNaN(score)) {
+            const score = parseFormattedNumber(scoreEl.value);
+            if (!Number.isFinite(score)) {
                 alert(`プレイヤー${i + 1}の点数が無効です。`);
                 return;
             }

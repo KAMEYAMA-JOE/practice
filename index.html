@@ -104,14 +104,7 @@
                                     <input type="checkbox" id="rule-yakitori-enabled" onchange="toggleYakitoriOption()">
                                     焼き鳥オプション
                                 </label>
-                                <div class="yakitori-input-group">
-                                    <label for="rule-yakitori">焼き鳥ペナルティ（点数）</label>
-                                    <div class="yakitori-field-wrap">
-                                        <input type="number" id="rule-yakitori" value="0" step="5" placeholder="例: 9000" disabled>
-                                        <span class="input-unit">点</span>
-                                    </div>
-                                </div>
-                                <p class="helper-text">入力された点数は計算時に /100 で pt に換算されます。</p>
+                                <input type="text" id="rule-yakitori" class="formatted-number" value="0" placeholder="例: 9,000" inputmode="numeric" pattern="[0-9,]*" disabled>
                             </div>
                         </div>
                     </div>

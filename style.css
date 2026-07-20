@@ -273,6 +273,10 @@ header p {
     flex: 0 0 auto;
 }
 
+.player-cell-yakitori.yakitori-hidden {
+    display: none;
+}
+
 @media (max-width: 680px) {
     .player-row {
         align-items: stretch;
