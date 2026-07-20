@@ -15,10 +15,12 @@ let currentRules = {
 };
 
 let calculatedResults = null;
+let autoFillApplied = false;
 
 // ストレージキー定数
 const STORAGE_RULES_KEY = 'mj_calc_rules';
 const STORAGE_HISTORY_KEY = 'mj_calc_history';
+const STORAGE_PLAYER_NAMES_KEY = 'mj_player_names';
 
 // ========== 初期化 ==========
 window.addEventListener('DOMContentLoaded', () => {
@@ -66,15 +68,19 @@ function initPlayerInputs() {
     if (!container) return;
     
     container.innerHTML = '';
+    autoFillApplied = false;
     const count = parseInt(currentRules.players);
     const winds = ['東', '南', '西', '北'];
 
+    const savedNames = loadPlayerNamesFromStorage(count);
     for (let i = 0; i < count; i++) {
         const row = document.createElement('div');
         row.className = 'player-row';
         row.setAttribute('data-player-id', i);
         
         const wind = winds[i];
+        const defaultName = `プレイヤー${wind}`;
+        const playerName = savedNames[i] || defaultName;
         row.innerHTML = `
             <div class="player-cell-wind" aria-label="座">${wind}</div>
             <div class="player-cell-name">
@@ -82,7 +88,7 @@ function initPlayerInputs() {
                     type="text" 
                     id="p-name-${i}" 
                     class="player-name-input"
-                    value="プレイヤー${wind}" 
+                    value="${escapeHtml(playerName)}" 
                     placeholder="プレイヤー名"
                     aria-label="プレイヤー${wind}の名前"
                 >
@@ -103,7 +109,50 @@ function initPlayerInputs() {
     }
     
     setupRealtimeValidation();
+    setupPlayerNamePersistence();
 }
+
+function loadPlayerNamesFromStorage(count) {
+    try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_PLAYER_NAMES_KEY) || '{}');
+        if (Array.isArray(saved[count])) {
+            return saved[count];
+        }
+    } catch (error) {
+        console.error('プレイヤー名読み込みエラー:', error);
+    }
+    return [];
+}
+
+function savePlayerNamesToStorage(names) {
+    try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_PLAYER_NAMES_KEY) || '{}');
+        saved[currentRules.players] = names;
+        localStorage.setItem(STORAGE_PLAYER_NAMES_KEY, JSON.stringify(saved));
+    } catch (error) {
+        console.error('プレイヤー名保存エラー:', error);
+    }
+}
+
+function setupPlayerNamePersistence() {
+    const inputs = document.querySelectorAll('.player-name-input');
+    inputs.forEach(input => {
+        input.removeEventListener('input', handlePlayerNameInput);
+        input.addEventListener('input', handlePlayerNameInput);
+    });
+}
+
+function handlePlayerNameInput() {
+    const names = Array.from(document.querySelectorAll('.player-name-input')).map(input => input.value.trim());
+    savePlayerNamesToStorage(names);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 
 function togglePlayerCount() {
     const select = document.getElementById('rule-players');
@@ -131,7 +180,8 @@ function validateScores() {
     
     let filledCount = 0;
     let currentTotal = 0;
-    let emptyIndex = -1;
+    let missingIndex = -1;
+    let missingCount = 0;
 
     for (let i = 0; i < count; i++) {
         const input = document.getElementById(`p-score-${i}`);
@@ -143,9 +193,13 @@ function validateScores() {
             if (!isNaN(numVal)) {
                 filledCount++;
                 currentTotal += numVal;
+            } else {
+                missingIndex = i;
+                missingCount++;
             }
         } else {
-            emptyIndex = i;
+            missingIndex = i;
+            missingCount++;
         }
     }
 
@@ -154,12 +208,16 @@ function validateScores() {
     
     if (!indicator || !calcBtn) return;
 
-    // 自動補完（残り1名のみ未入力のとき）
-    if (filledCount === count - 1 && emptyIndex !== -1) {
+    // 自動補完（残り1名のみ未入力または無効入力のとき、一度だけ実行）
+    if (!autoFillApplied && missingCount === 1 && filledCount === count - 1 && missingIndex !== -1) {
         const autoScore = targetTotal - currentTotal;
-        const input = document.getElementById(`p-score-${emptyIndex}`);
-        if (input) {
-            input.placeholder = `自動補完: ${autoScore}`;
+        const input = document.getElementById(`p-score-${missingIndex}`);
+        if (input && input.value.trim() === '') {
+            input.value = autoScore;
+            input.dataset.autoFilled = 'true';
+            autoFillApplied = true;
+            filledCount++;
+            currentTotal += autoScore;
         }
     }
 
@@ -191,7 +249,7 @@ function saveRules(event) {
     
     try {
         currentRules.players = parseInt(document.getElementById('rule-players')?.value || 4);
-        currentRules.genten = parseInt(document.getElementById('rule-genten')?.value || 25000);
+        currentRules.genten = 25000;
         currentRules.kaeshi = parseInt(document.getElementById('rule-kaeshi')?.value || 30000);
         currentRules.uma = document.getElementById('rule-uma')?.value || "10-30";
         currentRules.rounding = document.getElementById('rule-rounding')?.value || "5sha6nyu";
@@ -217,6 +275,7 @@ function loadRulesFromStorage() {
         if (saved) {
             const parsed = JSON.parse(saved);
             currentRules = { ...currentRules, ...parsed };
+            currentRules.genten = 25000;
             
             // UI要素を更新
             const ruleInputs = {
@@ -514,13 +573,35 @@ function loadHistory() {
     try {
         const history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
         const container = document.getElementById('history-list');
-        if (!container) return;
+        const summary = document.getElementById('history-summary');
+        const totalsPanel = document.getElementById('history-totals');
+        if (!container || !summary || !totalsPanel) return;
         
         container.innerHTML = '';
+        totalsPanel.innerHTML = '';
+        summary.textContent = `対局数: ${history.length}件`;
 
         if (history.length === 0) {
+            totalsPanel.innerHTML = '<div style="color:var(--text-muted); padding:1rem; border:1px dashed var(--border-color); border-radius:8px;">総合収支は履歴保存後に表示されます</div>';
             container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:2rem 1rem;">📭 履歴はありません</p>';
             return;
+        }
+
+        const totals = computeHistoryTotals(history);
+        if (totals.length > 0) {
+            totalsPanel.innerHTML = totals.map(([name, total], index) => {
+                const totalStr = total > 0 ? `+${total.toFixed(1)}` : total.toFixed(1);
+                const totalClass = total > 0 ? 'score-plus' : (total < 0 ? 'score-minus' : '');
+                return `
+                    <div class="history-total-card">
+                        <div class="history-total-rank">${index + 1}</div>
+                        <div class="history-total-body">
+                            <div class="history-total-name">${escapeHtml(name)}</div>
+                            <div class="history-total-value ${totalClass}">${totalStr}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         history.forEach(item => {
@@ -554,6 +635,17 @@ function loadHistory() {
     }
 }
 
+function computeHistoryTotals(history) {
+    const totals = {};
+    history.forEach(item => {
+        item.scores.forEach(score => {
+            const name = score.name || '未設定';
+            totals[name] = (totals[name] || 0) + (Number(score.pt) || 0);
+        });
+    });
+    return Object.entries(totals).sort((a, b) => b[1] - a[1]);
+}
+
 function clearHistory() {
     if (confirm('⚠️  すべての対局履歴を消去してもよろしいですか？')) {
         try {
@@ -567,9 +659,3 @@ function clearHistory() {
     }
 }
 
-// ========== ユーティリティ関数 ==========
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
